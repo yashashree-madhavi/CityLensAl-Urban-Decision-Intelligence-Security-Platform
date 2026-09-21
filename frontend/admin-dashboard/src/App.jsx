@@ -1,122 +1,91 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from "react";
+import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [connectionStatus, setConnectionStatus] = useState("Connecting...");
+  const [messages, setMessages] = useState([]);
+
+  useEffect(() => {
+    const ws = new WebSocket("ws://127.0.0.1:8000/ws/admin");
+
+    ws.onopen = () => {
+      console.log("✅ Admin Dashboard WebSocket connected");
+      setConnectionStatus("Connected");
+    };
+
+    ws.onmessage = (event) => {
+      console.log("📨 WebSocket message:", event.data);
+
+      const data = JSON.parse(event.data);
+
+      setMessages((previousMessages) => {
+        if (data.event === "emergency_status_updated") {
+          return previousMessages.map((message) => {
+            if (
+              message.emergency?.id === data.emergency?.id
+            ) {
+              return data;
+            }
+
+            return message;
+          });
+        }
+
+        return [data, ...previousMessages];
+      });
+    };
+
+    ws.onclose = () => {
+      console.log("❌ WebSocket disconnected");
+      setConnectionStatus("Disconnected");
+    };
+
+    ws.onerror = (error) => {
+      console.log("⚠️ WebSocket error:", error);
+      setConnectionStatus("Error");
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div style={{ padding: "40px", fontFamily: "Arial" }}>
+      <h1>CityLens AI - Admin Dashboard</h1>
 
-      <div className="ticks"></div>
+      <h2>
+        WebSocket Status:{" "}
+        <span>{connectionStatus}</span>
+      </h2>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <hr />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      <h2>Live Emergency Updates</h2>
+
+      {messages.length === 0 ? (
+        <p>No emergency updates yet.</p>
+      ) : (
+        messages.map((message, index) => (
+          <div
+            key={index}
+            style={{
+              border: "1px solid #ccc",
+              padding: "15px",
+              marginBottom: "10px",
+              borderRadius: "8px",
+            }}
+          >
+            <strong>Event:</strong> {message.event}
+
+            <pre>
+              {JSON.stringify(message.emergency, null, 2)}
+            </pre>
+          </div>
+        ))
+      )}
+    </div>
+  );
 }
 
-export default App
+export default App;
