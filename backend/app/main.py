@@ -3,11 +3,14 @@ from sqlalchemy import text
 
 from app.models.user import User
 from app.models.emergency import Emergency
+from app.models.weather import WeatherData
 from app.database.database import Base, engine
 from app.routes.auth import router as auth_router
 from app.routes.emergency import router as emergency_router
 from app.security.auth import get_current_user, require_role
 from app.websocket.connection import router as websocket_router
+from app.routes.weather import router as weather_router
+from app.scheduler.weather_scheduler import start_weather_scheduler
 
 Base.metadata.create_all(bind=engine)
 
@@ -20,6 +23,9 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(emergency_router)
 app.include_router(websocket_router)
+app.include_router(weather_router)
+
+start_weather_scheduler()
 
 @app.get("/")
 def root():
