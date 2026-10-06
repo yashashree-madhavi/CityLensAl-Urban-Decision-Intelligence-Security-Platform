@@ -20,3 +20,14 @@ class EmergencyResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ResourceRecommendationResponse(BaseModel):
+    priority: str
+    recommended_resources: list[str]
+    reasons: list[str]
+
+
+class EmergencyWithRecommendationResponse(BaseModel):
+    emergency: EmergencyResponse
+    resource_recommendation: ResourceRecommendationResponse

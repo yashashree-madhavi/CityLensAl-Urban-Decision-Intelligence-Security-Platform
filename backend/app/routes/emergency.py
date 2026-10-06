@@ -3,10 +3,15 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.emergency import Emergency
-from app.schemas.emergency import EmergencyCreate, EmergencyResponse
+from app.schemas.emergency import EmergencyCreate, EmergencyResponse, EmergencyWithRecommendationResponse
 from app.models.user import User
 from app.security.auth import get_current_user, require_role
 from app.websocket.manager import manager
+from app.ai.resource_recommendation import recommend_resources
+from app.services.flood_risk_service import calculate_flood_risk
+from app.models.bmc_weather import BMCWeatherData
+from app.models.incident_report import IncidentReport
+from app.services.traffic_service import get_traffic
 
 router = APIRouter(
     prefix="/emergencies",
@@ -16,7 +21,8 @@ router = APIRouter(
 
 @router.post(
     "",
-    response_model=EmergencyResponse
+    response_model=EmergencyWithRecommendationResponse
+
 )
 async def create_emergency(
     emergency_data: EmergencyCreate,
@@ -30,6 +36,69 @@ async def create_emergency(
         latitude=emergency_data.latitude,
         longitude=emergency_data.longitude,
         status="active"
+    )
+
+    stations = db.query(BMCWeatherData).all()
+
+    nearest_station = None
+    nearest_distance = None
+
+    for station in stations:
+        distance = (
+            (station.latitude - emergency_data.latitude) ** 2
+            + (station.longitude - emergency_data.longitude) ** 2
+        )
+
+        if nearest_distance is None or distance < nearest_distance:
+            nearest_distance = distance
+            nearest_station = station
+
+    flood_risk = "LOW"
+
+    if nearest_station:
+        flood_analysis = calculate_flood_risk(
+            db,
+            nearest_station.bmc_location_id
+        )
+
+
+
+        if flood_analysis:
+            flood_risk = flood_analysis["risk_level"]
+
+    nearby_incidents = (
+        db.query(IncidentReport)
+        .filter(
+            IncidentReport.status.in_(
+                ["verified", "investigating"]
+            )
+        )
+        .all()
+    )
+
+    nearby_incident_count = 0
+
+    for incident in nearby_incidents:
+        distance = (
+            (incident.latitude - emergency_data.latitude) ** 2
+            + (incident.longitude - emergency_data.longitude) ** 2
+        )
+
+        if distance <= 0.005 ** 2:
+            nearby_incident_count += 1
+
+    traffic_analysis = await get_traffic(
+        emergency_data.latitude,
+        emergency_data.longitude
+    )
+
+    traffic_level = traffic_analysis["congestion_level"]
+
+    resource_recommendation = recommend_resources(
+        emergency_type=emergency_data.emergency_type,
+        flood_risk=flood_risk,
+        traffic_level=traffic_level,
+        incident_count=nearby_incident_count
     )
 
     db.add(new_emergency)
@@ -49,7 +118,10 @@ async def create_emergency(
         }
     })
 
-    return new_emergency
+    return {
+        "emergency": new_emergency,
+        "resource_recommendation": resource_recommendation
+    }
 
 @router.get(
     "",

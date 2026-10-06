@@ -1,11 +1,11 @@
-from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, Float, DateTime
 from sqlalchemy.sql import func
 
 from app.database.database import Base
 
 
-class WeatherData(Base):
-    __tablename__ = "weather_data"
+class AQIData(Base):
+    __tablename__ = "aqi_data"
 
     id = Column(
         Integer,
@@ -18,37 +18,42 @@ class WeatherData(Base):
         nullable=False
     )
 
-    temperature = Column(
+    pm10 = Column(
         Float,
         nullable=True
     )
 
-    apparent_temperature = Column(
+    pm2_5 = Column(
         Float,
         nullable=True
     )
 
-    humidity = Column(
+    carbon_monoxide = Column(
         Float,
         nullable=True
     )
 
-    precipitation = Column(
+    nitrogen_dioxide = Column(
         Float,
         nullable=True
     )
 
-    rain = Column(
+    sulphur_dioxide = Column(
         Float,
         nullable=True
     )
 
-    weather_code = Column(
-        Integer,
+    ozone = Column(
+        Float,
         nullable=True
     )
 
-    wind_speed = Column(
+    european_aqi = Column(
+        Float,
+        nullable=True
+    )
+
+    us_aqi = Column(
         Float,
         nullable=True
     )
@@ -63,12 +68,6 @@ class WeatherData(Base):
         nullable=False
     )
 
-    location_id = Column(
-        Integer,
-        ForeignKey("locations.id"),
-        nullable=True
-    )
-    
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now()
